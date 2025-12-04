@@ -23,7 +23,6 @@ import argparse
 import os
 
 # GLOBAL CONSTANTS
-RISK_ID_COL = "ENTERPRISE_RISK_ID" # makes sure it matches the CSV column; dynamic per type
 SEARCH_DAYS = 7  # look back this many days for news articles; edit to change
 
 # decoding logic (retained from original script but made a fx)
@@ -55,12 +54,10 @@ def main():
     # config based on risk type
     risk_type = args.risk_type
     if risk_type == "enterprise":
-        global RISK_ID_COL
         RISK_ID_COL = "ENTERPRISE_RISK_ID"
         ENCODED_CSV = "EnterpriseRisksListEncoded.csv"
         OUTPUT_CSV = "enterprise_risks_online_sentiment.csv"
     else:  # emerging
-        global RISK_ID_COL
         RISK_ID_COL = "EMERGING_RISK_ID"
         ENCODED_CSV = "EmergingRisksListEncoded.csv"
         OUTPUT_CSV = "emerging_risks_online_sentiment.csv"
