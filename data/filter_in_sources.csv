@@ -1,48 +1,77 @@
-SOURCE_NAME
-ai-magazine.com
-aljazeera.com
-apnews.com
-arstechnica.com
-axios.com
-bbc.com
-baltimoresun.com
-bloomberg.com
-businesswire.com
-cnbc.com
-crainsdetroit.com
-csmonitor.com
-cybersecuritydive.com
-datacenternews.asia
-dw.com
-e27.co
-economist.com
-forbes.com
-france24.com
-ft.com
-hi-tech.ua
-industrialcyber.co
-manufacturing.net
-marketwatch.com
-nationalgeographic.com
-nature.com
-npr.org
-nytimes.com
-odwyerpr.com
-pbs.org
-prnewswire.com
-prweek.com
-propublica.org
-reuters.com
-scworld.com
-sciencemag.org
-statnews.com
-tech.co
-techxplore.com
-technologyreview.com
-the-star.co.ke
-therecord.media
-theguardian.com
-usatoday.com
-vox.com
-washingtonpost.com
-wsj.com
+SOURCE_ID,SOURCE_TITLE,SOURCE_NAME
+1,The Wall Street Journal,wsj.com
+2,Financial Times,ft.com
+3,Bloomberg,bloomberg.com
+4,Reuters,reuters.com
+5,The New York Times,nytimes.com
+6,The Washington Post,washingtonpost.com
+7,CNBC,cnbc.com
+8,Forbes,forbes.com
+9,The Economist,economist.com
+10,BBC News,bbc.com
+11,Associated Press,apnews.com
+12,NPR,npr.org
+13,Politico,politico.com
+14,Axios,axios.com
+15,The Guardian,theguardian.com
+16,Al Jazeera,aljazeera.com
+17,CNN,cnn.com
+18,Fox Business,foxbusiness.com
+19,MarketWatch,marketwatch.com
+20,Barron's,barrons.com
+21,Investopedia,investopedia.com
+22,CoinDesk,coindesk.com
+23,Wired,wired.com
+24,MIT Technology Review,technologyreview.com
+25,Dark Reading,darkreading.com
+26,Krebs on Security,krebsonsecurity.com
+27,The Hill,thehill.com
+28,Foreign Policy,foreignpolicy.com
+29,Council on Foreign Relations,cfr.org
+30,Brookings Institution,brookings.edu
+31,Pew Research Center,pewresearch.org
+32,Atlantic Council,atlanticcouncil.org
+33,CSIS (Center for Strategic and International Studies),csis.org
+34,RAND Corporation,rand.org
+35,Financial Times Alphaville,ftalphaville.ft.com
+36,ProPublica,propublica.org
+37,The Intercept,theintercept.com
+38,Vice News,vice.com
+39,Quartz,qz.com
+40,Nikkei Asia,asia.nikkei.com
+41,South China Morning Post,scmp.com
+42,DW,dw.com
+43,Le Monde,lemonde.fr/en
+44,The Times of India,timesofindia.indiatimes.com
+45,Haaretz,haaretz.com
+46,ABC News,abc.net.au/news
+47,CBC News,cbc.ca
+48,The Globe and Mail,theglobeandmail.com
+49,Der Spiegel,spiegel.de/international
+50,El PaAS,english.elpais.com
+51,Ars Technica,arstechnica.com
+52,Baltimore Sun,baltimoresun.com
+53,Business Wire,businesswire.com
+54,Crain's Detroit,crainsdetroit.com
+55,Cybersecurity Dive,cybersecuritydive.com
+56,e27,e27.co
+57,France 24,france24.com
+58,Industrial Cyber,industrialcyber.co
+59,Manufacturing.net,manufacturing.net
+60,National Geographic,nationalgeographic.com
+61,Nature,nature.com
+62,PBS,pbs.org
+63,SC Media,scworld.com
+64,Science Magazine,sciencemag.org
+65,Stat News,statnews.com
+66,Tech.co,tech.co
+67,TechXplore,techxplore.com
+68,The Record,therecord.media
+69,The Star,the-star.co.ke
+70,PR Newswire,prnewswire.com
+71,O'Dwyer's,odwyerpr.com
+72,Yahoo Finance,finance.yahoo.com
+73,Seeking Alpha,seekingalpha.com
+74,Investing.com,investing.com
+75,Benzinga,benzinga.com
+76,The Motley Fool,fool.com
