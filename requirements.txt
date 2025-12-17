@@ -8,3 +8,4 @@ vaderSentiment==3.3.2
 googlenewsdecoder==0.1.6
 newspaper3k>=0.2.8
 keybert>=0.7.0
+gnews
