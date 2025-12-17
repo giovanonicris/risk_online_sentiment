@@ -229,6 +229,7 @@ def get_google_news_articles(search_term, session, existing_links, max_articles,
         max_results=max_articles
     )
     google_news.api_key = os.getenv('GNEWS_API_KEY')
+    print(f"GNews API key loaded: {google_news.api_key is not None} (length: {len(google_news.api_key) if google_news.api_key else 0})")
     if not google_news.api_key:
         print("ERROR: GNEWS_API_KEY not set!")
         return []
