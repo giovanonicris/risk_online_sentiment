@@ -223,7 +223,7 @@ def process_risk_articles(search_terms_df, session, existing_links, analyzer, wh
 def get_google_news_articles(search_term, session, existing_links, max_articles, now, yesterday, whitelist, paywalled, credibility_map, exclusive_whitelist):
     api_key = os.getenv('GNEWS_API_KEY')
     if not api_key:
-        print("ERROR: GNEWS_API_KEY not set!")
+        print("ERROR: GNEWS_API_KEY not set or empty!")
         return []
 
     # build whitelist query
@@ -243,14 +243,13 @@ def get_google_news_articles(search_term, session, existing_links, max_articles,
         resp = requests.get(url, params=params, timeout=15)
         resp.raise_for_status()
         data = resp.json()
+        print(f"GNews API response: {resp.status_code}, articles: {data.get('totalArticles', 0)}")
     except Exception as e:
-        print(f"GNews API error: {e}")
+        print(f"GNews API request failed: {e}")
         return []
 
     articles = []
-    article_count = 0
-
-    for item in data.get('articles', []):
+    for idx, item in enumerate(data.get('articles', [])):
         url = item['url']
         if url.lower().strip() in existing_links:
             continue
@@ -261,7 +260,7 @@ def get_google_news_articles(search_term, session, existing_links, max_articles,
         parsed_url = urlparse(url)
         full_domain = parsed_url.netloc.lower().replace('www.', '')
 
-        google_index = article_count + 1
+        google_index = idx + 1
 
         is_paywalled = full_domain.lower() in paywalled
         credibility_type = credibility_map.get(full_domain.lower(), 'Relevant Article')
@@ -274,11 +273,7 @@ def get_google_news_articles(search_term, session, existing_links, max_articles,
             'paywalled': is_paywalled,
             'credibility_type': credibility_type
         })
-        print(f"    - Added article: '{title[:50]}...' from {source_text} (domain: {get_source_name(url)}, full_domain: {full_domain}, index: {google_index}, paywalled: {is_paywalled}, credibility: {credibility_type})")
-
-        article_count += 1
-        if article_count >= max_articles:
-            break
+        print(f"    - Added article: '{title[:50]}...' from {source_text} (domain: {get_source_name(url)}, full_domain: {full_domain})")
 
     print(f"  ---found {len(articles)} new articles via GNews direct API")
     return articles
