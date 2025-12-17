@@ -251,32 +251,21 @@ def get_google_news_articles(search_term, session, existing_links, max_articles,
                 encoded_url = link_elem.text.strip()
                 
                 # more robust decode - works on current (as of 2025) Google News RSS formt
-                decoded_url = encoded_url
-                if 'news.google.com/rss/articles/' in encoded_url:
+                decoded_url = encoded_url  # fallback if redirect fails
+                try:
+                    head_resp = session.session.head(encoded_url, allow_redirects=True, headers=session.get_random_headers(), timeout=10)
+                    decoded_url = head_resp.url
+                    if DEBUG_MODE:
+                        print(f"      redirected -> {decoded_url}")
+                except Exception as e:
+                    if DEBUG_MODE:
+                        print(f"      redirect failed (using encoded): {e}")
+                    # fallback to full get if head fails (rare)
                     try:
-                        # extract base64 part
-                        b64 = encoded_url.split('/articles/')[1].split('?')[0]
-                        b64 += '=' * (-len(b64) % 4)
-                        data = base64.urlsafe_b64decode(b64)
-                        
-                        # the real url is usually the last http(s) string in the blob
-                        # convert to string and find all urls
-                        text = data.decode('utf-8', errors='ignore')
-                        urls = re.findall(r'https?://[^\s<>"\']+', text)
-                        if urls:
-                            # take the last one — it's almost always the clean article url
-                            decoded_url = urls[-1]
-                            # clean tracking params
-                            decoded_url = re.sub(r'&ved=.*', '', decoded_url)
-                            decoded_url = re.sub(r'\?uo.*', '', decoded_url)
-                            decoded_url = re.sub(r'&uo.*', '', decoded_url)
-                        
-                        if DEBUG_MODE:
-                            print(f"      decoded -> {decoded_url}")
-                    except Exception as e:
-                        if DEBUG_MODE:
-                            print(f"      decode failed: {e}")
-                        decoded_url = encoded_url
+                        get_resp = session.session.get(encoded_url, allow_redirects=True, headers=session.get_random_headers(), timeout=10)
+                        decoded_url = get_resp.url
+                    except:
+                        pass
                 
                 title_elem = item.find('title')
                 title_text = title_elem.text.strip() if title_elem is not None else ''
