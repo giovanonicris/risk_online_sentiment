@@ -236,7 +236,7 @@ def get_google_news_articles(search_term, session, existing_links, max_articles,
             req = session.session.get(rss_url, headers=session.get_random_headers())
             req.raise_for_status()
             
-            # decode rss - switching to ET from buggy decoder
+            # decode rss - pure ET parse + improved lightweight decode
             root = ET.fromstring(req.content)
             items = root.findall('.//item')
             
@@ -250,27 +250,30 @@ def get_google_news_articles(search_term, session, existing_links, max_articles,
                     continue
                 encoded_url = link_elem.text.strip()
                 
-                # new lightweight decode for current google format
-                if encoded_url.startswith('https://news.google.com/rss/articles/'):
+                # improved lightweight decode - more robust for current google format
+                decoded_url = encoded_url  # fallback
+                if 'news.google.com/rss/articles/' in encoded_url:
                     try:
-                        b64 = encoded_url.split('/')[-1].split('?')[0]
-                        b64 += '=='  # pad fix
-                        decoded_bytes = base64.urlsafe_b64decode(b64)
-                        decoded_str = decoded_bytes.decode('latin1')
-                        # strip protobuf prefix/suffix
-                        prefix = bytes([8, 19, 34]).decode('latin1')
-                        suffix = bytes([210, 1, 0]).decode('latin1')
-                        if decoded_str.startswith(prefix):
-                            decoded_str = decoded_str[len(prefix):]
-                        if decoded_str.endswith(suffix):
-                            decoded_str = decoded_str[:-len(suffix)]
-                        # extract primary http url
-                        match = re.search(r'http[^\x00]*', decoded_str)
-                        decoded_url = match.group(0) if match else encoded_url
-                    except Exception:
-                        decoded_url = encoded_url  # fallback raw
-                else:
-                    decoded_url = encoded_url
+                        b64_part = encoded_url.split('/articles/')[-1].split('?')[0]
+                        # proper padding
+                        b64_part += '=' * (-len(b64_part) % 4)
+                        decoded_bytes = base64.urlsafe_b64decode(b64_part)
+                        decoded_str = decoded_bytes.decode('utf-8', errors='ignore')
+                        
+                        # find clean http url
+                        url_match = re.search(r'(https?://[^\s"]+)', decoded_str)
+                        if url_match:
+                            decoded_url = url_match.group(1)
+                            # strip google tracking junk
+                            decoded_url = re.sub(r'&ved=.*$', '', decoded_url)
+                            decoded_url = re.sub(r'\?uo.*$', '', decoded_url)
+                        
+                        if DEBUG_MODE:
+                            print(f"      decoded -> {decoded_url[:100]}{'...' if len(decoded_url)>100 else ''}")
+                    except Exception as e:
+                        if DEBUG_MODE:
+                            print(f"      decode failed: {e}")
+                        decoded_url = encoded_url
                 
                 title_elem = item.find('title')
                 title_text = title_elem.text.strip() if title_elem is not None else ''
@@ -310,7 +313,7 @@ def get_google_news_articles(search_term, session, existing_links, max_articles,
                     break
                     
             page += 1
-            time.sleep(1)  # just for decorum
+            time.sleep(1)  # polite delay
             
         except requests.exceptions.RequestException as e:
             print(f"SPOTTED REQUEST ERROR - term {search_term[:30]}... on page {page+1}: {e}")
