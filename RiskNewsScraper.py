@@ -251,26 +251,25 @@ def get_google_news_articles(search_term, session, existing_links, max_articles,
                 encoded_url = link_elem.text.strip()
                 
                 # more robust decode - works on current (as of 2025) Google News RSS formt
-                decoded_url = encoded_url  # fallback
+                decoded_url = encoded_url
                 if 'news.google.com/rss/articles/' in encoded_url:
                     try:
-                        # extract base64 part correctly
-                        b64_part = encoded_url.split('/articles/')[1].split('?')[0]
-                        b64_part += '=' * (-len(b64_part) % 4)  # padding
-                        payload = base64.urlsafe_b64decode(b64_part)
+                        # extract base64 part
+                        b64 = encoded_url.split('/articles/')[1].split('?')[0]
+                        b64 += '=' * (-len(b64) % 4)
+                        data = base64.urlsafe_b64decode(b64)
                         
-                        # convert to string, ignore errors
-                        payload_str = payload.decode('utf-8', errors='ignore')
-                        
-                        # find ALL http urls and take the longest one (usually the clean article url)
-                        urls = re.findall(r'(https?://[^\s"\'<>]+)', payload_str)
+                        # the real url is usually the last http(s) string in the blob
+                        # convert to string and find all urls
+                        text = data.decode('utf-8', errors='ignore')
+                        urls = re.findall(r'https?://[^\s<>"\']+', text)
                         if urls:
-                            # longest is almost always the real article
-                            decoded_url = max(urls, key=len)
-                            # clean tracking
-                            decoded_url = re.sub(r'[?&]ved=.*$', '', decoded_url)
-                            decoded_url = re.sub(r'[?&]uo.*$', '', decoded_url)
-                            decoded_url = re.sub(r'[?&]utm_.*$', '', decoded_url)
+                            # take the last one — it's almost always the clean article url
+                            decoded_url = urls[-1]
+                            # clean tracking params
+                            decoded_url = re.sub(r'&ved=.*', '', decoded_url)
+                            decoded_url = re.sub(r'\?uo.*', '', decoded_url)
+                            decoded_url = re.sub(r'&uo.*', '', decoded_url)
                         
                         if DEBUG_MODE:
                             print(f"      decoded -> {decoded_url}")
