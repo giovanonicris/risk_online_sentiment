@@ -236,40 +236,29 @@ def get_google_news_articles(search_term, session, existing_links, max_articles,
             req = session.session.get(rss_url, headers=session.get_random_headers())
             req.raise_for_status()
             
+            ##########################################
             # decode rss - pure ET parse + improved lightweight decode
-            decoded_url = encoded_url
-            try:
-                # browser-like headers
-                headers = session.get_random_headers()
-                headers.update({
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                    'Accept-Language': 'en-US,en;q=0.5',
-                    'Accept-Encoding': 'gzip, deflate, br',
-                    'Referer': 'https://news.google.com/',
-                    'DNT': '1',
-                    'Connection': 'keep-alive',
-                    'Upgrade-Insecure-Requests': '1',
-                    'Sec-Fetch-Dest': 'document',
-                    'Sec-Fetch-Mode': 'navigate',
-                    'Sec-Fetch-Site': 'none',
-                    'Sec-Fetch-User': '?1',
-                })
-                
-                # use GET (HEAD often blocked by Google)
-                resp = session.session.get(
-                    encoded_url,
-                    headers=headers,
-                    allow_redirects=True,
-                    timeout=15
-                )
-                decoded_url = resp.url
-                
-                if DEBUG_MODE:
-                    print(f"      redirected -> {decoded_url}")
-            except Exception as e:
-                if DEBUG_MODE:
-                    print(f"      redirect failed: {e}")
-                decoded_url = encoded_url
+            # improved base64 decode with proper padding
+            decoded_url = encoded_url  # fallback
+            if 'news.google.com/rss/articles/' in encoded_url:
+                try:
+                    b64_part = encoded_url.split('/articles/')[1].split('?')[0]
+                    b64_part += '=' * (-len(b64_part) % 4)  # proper padding
+                    decoded_bytes = base64.urlsafe_b64decode(b64_part)
+                    decoded_str = decoded_bytes.decode('utf-8', errors='ignore')
+                    
+                    url_match = re.search(r'(https?://[^\s"]+)', decoded_str)
+                    if url_match:
+                        decoded_url = url_match.group(1)
+                        decoded_url = re.sub(r'&ved=.*$', '', decoded_url)
+                        decoded_url = re.sub(r'\?uo.*$', '', decoded_url)
+                    
+                    if DEBUG_MODE:
+                        print(f"      decoded -> {decoded_url}")
+                except Exception as e:
+                    if DEBUG_MODE:
+                        print(f"      decode failed: {e}")
+                    decoded_url = encoded_url
 
                 ############################################
                 title_elem = item.find('title')
