@@ -226,11 +226,11 @@ def get_google_news_articles(search_term, session, existing_links, max_articles,
         language='en',
         country='US',
         period='7d',
-        max_results=max_articles,
-        api_key='b21cccbbec650d03601531817fbdf6f3'  # your key
+        max_results=max_articles
     )
+    google_news.api_key = os.getenv('GNEWS_API_KEY')
 
-    # build the same exclusive whitelist query you had before
+    # build the same exclusive whitelist query
     site_query = " OR ".join(f"site:{domain}" for domain in exclusive_whitelist)
     full_query = f"{search_term} ({site_query})"
 
