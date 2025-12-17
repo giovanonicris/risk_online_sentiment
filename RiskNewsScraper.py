@@ -251,28 +251,23 @@ def get_google_news_articles(search_term, session, existing_links, max_articles,
                 encoded_url = link_elem.text.strip()
                 
                 # final working decode for late 2025 google news rss
+                # try to follow google redirect to get the real article url
                 decoded_url = encoded_url  # fallback
-                if 'news.google.com/rss/articles/' in encoded_url:
+                if 'news.google.com' in encoded_url:
                     try:
-                        b64_part = encoded_url.split('/articles/')[1].split('?')[0]
-                        b64_part += '=' * (-len(b64_part) % 4)  # proper padding
-                        payload = base64.urlsafe_b64decode(b64_part)
-                        text = payload.decode('utf-8', errors='ignore')
-                        
-                        # find all URLs and take the last one (this is the real article in current format)
-                        urls = re.findall(r'https?://[^\s"\'<>]+', text)
-                        if urls:
-                            decoded_url = urls[-1]
-                            # clean tracking
-                            decoded_url = re.sub(r'&ved=.*', '', decoded_url)
-                            decoded_url = re.sub(r'\?uo.*', '', decoded_url)
-                            decoded_url = re.sub(r'&uo.*', '', decoded_url)
-                        
+                        # use GET (HEAD is often blocked)
+                        redirect_resp = session.session.get(
+                            encoded_url,
+                            headers=session.get_random_headers(),
+                            allow_redirects=True,
+                            timeout=10
+                        )
+                        decoded_url = redirect_resp.url
                         if DEBUG_MODE:
-                            print(f"      decoded -> {decoded_url}")
+                            print(f"      redirected -> {decoded_url}")
                     except Exception as e:
                         if DEBUG_MODE:
-                            print(f"      decode failed: {e}")
+                            print(f"      redirect failed: {e}")
                         decoded_url = encoded_url
                 
                 title_elem = item.find('title')
