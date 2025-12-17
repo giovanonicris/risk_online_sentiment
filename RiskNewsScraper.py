@@ -21,6 +21,7 @@ from keybert import KeyBERT
 import xml.etree.ElementTree as ET
 import argparse
 import os
+import base64
 
 # GLOBAL CONSTANTS
 SEARCH_DAYS = 7  # look back this many days for news articles; edit to change
@@ -235,26 +236,51 @@ def get_google_news_articles(search_term, session, existing_links, max_articles,
             req = session.session.get(rss_url, headers=session.get_random_headers())
             req.raise_for_status()
             
-            # decode rss
-            decoder = new_decoderv1()
-            rss_content = req.content
-            decoder.feed(rss_content)
-            decoder.parse()
-            
-            items = decoder.articles if hasattr(decoder, 'articles') else []
+            # decode rss - switching to ET from buggy decoder
+            root = ET.fromstring(req.content)
+            items = root.findall('.//item')
             
             if not items:
                 print(f"  - No more items on page {page+1}")
                 break
             
             for item_idx, item in enumerate(items):
+                link_elem = item.find('link')
+                if link_elem is None or not link_elem.text:
+                    continue
+                encoded_url = link_elem.text.strip()
+                
+                # new lightweight decode for current google format
+                if encoded_url.startswith('https://news.google.com/rss/articles/'):
+                    try:
+                        b64 = encoded_url.split('/')[-1].split('?')[0]
+                        b64 += '=='  # pad fix
+                        decoded_bytes = base64.urlsafe_b64decode(b64)
+                        decoded_str = decoded_bytes.decode('latin1')
+                        # strip protobuf prefix/suffix
+                        prefix = bytes([8, 19, 34]).decode('latin1')
+                        suffix = bytes([210, 1, 0]).decode('latin1')
+                        if decoded_str.startswith(prefix):
+                            decoded_str = decoded_str[len(prefix):]
+                        if decoded_str.endswith(suffix):
+                            decoded_str = decoded_str[:-len(suffix)]
+                        # extract primary http url
+                        match = re.search(r'http[^\x00]*', decoded_str)
+                        decoded_url = match.group(0) if match else encoded_url
+                    except Exception:
+                        decoded_url = encoded_url  # fallback raw
+                else:
+                    decoded_url = encoded_url
+                
+                title_elem = item.find('title')
+                title_text = title_elem.text.strip() if title_elem is not None else ''
+                
+                source_elem = item.find('source')
+                source_text = source_elem.text.strip() if source_elem is not None else ''
+                
                 # skip existing
-                decoded_url = item.link if hasattr(item, 'link') else ''
                 if decoded_url.lower().strip() in existing_links:
                     continue
-                
-                title_text = item.title if hasattr(item, 'title') else ''
-                source_text = item.source if hasattr(item, 'source') else ''
                 
                 # extract full domain
                 parsed_url = urlparse(decoded_url)
@@ -284,7 +310,7 @@ def get_google_news_articles(search_term, session, existing_links, max_articles,
                     break
                     
             page += 1
-            time.sleep(1)  # polite delay
+            time.sleep(1)  # just for decorum
             
         except requests.exceptions.RequestException as e:
             print(f"SPOTTED REQUEST ERROR - term {search_term[:30]}... on page {page+1}: {e}")
