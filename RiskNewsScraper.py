@@ -250,20 +250,23 @@ def get_google_news_articles(search_term, session, existing_links, max_articles,
                     continue
                 encoded_url = link_elem.text.strip()
                 
-                # improved base64 decode with proper padding - now inside the loop
+                # final working decode for late 2025 google news rss
                 decoded_url = encoded_url  # fallback
                 if 'news.google.com/rss/articles/' in encoded_url:
                     try:
                         b64_part = encoded_url.split('/articles/')[1].split('?')[0]
                         b64_part += '=' * (-len(b64_part) % 4)  # proper padding
-                        decoded_bytes = base64.urlsafe_b64decode(b64_part)
-                        decoded_str = decoded_bytes.decode('utf-8', errors='ignore')
+                        payload = base64.urlsafe_b64decode(b64_part)
+                        text = payload.decode('utf-8', errors='ignore')
                         
-                        url_match = re.search(r'(https?://[^\s"]+)', decoded_str)
-                        if url_match:
-                            decoded_url = url_match.group(1)
-                            decoded_url = re.sub(r'&ved=.*$', '', decoded_url)
-                            decoded_url = re.sub(r'\?uo.*$', '', decoded_url)
+                        # find all URLs and take the last one (this is the real article in current format)
+                        urls = re.findall(r'https?://[^\s"\'<>]+', text)
+                        if urls:
+                            decoded_url = urls[-1]
+                            # clean tracking
+                            decoded_url = re.sub(r'&ved=.*', '', decoded_url)
+                            decoded_url = re.sub(r'\?uo.*', '', decoded_url)
+                            decoded_url = re.sub(r'&uo.*', '', decoded_url)
                         
                         if DEBUG_MODE:
                             print(f"      decoded -> {decoded_url}")
