@@ -130,7 +130,7 @@ def load_search_terms(encoded_csv_path, risk_id_col):
         print(f"ERROR loading data/{encoded_csv_path}: {e}")
         sys.exit(1)
 
-def process_risk_articles(search_terms_df, session, existing_links, analyzer, whitelist, paywalled, credibility_map, exclusive_whitelist):
+def process_risk_articles(search_terms_df, session, existing_links, analyzer, whitelist, paywalled, credibility_map, exclusive_whitelist, risk_id_col):
     # this is the MAIN processing loop for risk articles
     print(f"Processing {len(search_terms_df)} search terms...")
     
