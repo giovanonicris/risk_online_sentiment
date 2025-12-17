@@ -221,39 +221,46 @@ def process_risk_articles(search_terms_df, session, existing_links, analyzer, wh
         return pd.DataFrame()
 
 def get_google_news_articles(search_term, session, existing_links, max_articles, now, yesterday, whitelist, paywalled, credibility_map, exclusive_whitelist):
-    # gnews setup with your api key
-    google_news = GNews(
-        language='en',
-        country='US',
-        period='7d',
-        max_results=max_articles
-    )
-    google_news.api_key = os.getenv('GNEWS_API_KEY')
-    if not google_news.api_key:
+    api_key = os.getenv('GNEWS_API_KEY')
+    if not api_key:
         print("ERROR: GNEWS_API_KEY not set!")
         return []
 
-    # build the same exclusive whitelist query
+    # build whitelist query
     site_query = " OR ".join(f"site:{domain}" for domain in exclusive_whitelist)
-    full_query = f"{search_term} ({site_query})"
+    query = f"{search_term} ({site_query})"
 
-    news_items = google_news.get_news(full_query)
+    url = "https://gnews.io/api/v4/search"
+    params = {
+        'q': query,
+        'lang': 'en',
+        'country': 'us',
+        'max': max_articles,
+        'apikey': api_key
+    }
+
+    try:
+        resp = requests.get(url, params=params, timeout=15)
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as e:
+        print(f"GNews API error: {e}")
+        return []
 
     articles = []
     article_count = 0
 
-    for item in news_items:
+    for item in data.get('articles', []):
         url = item['url']
         if url.lower().strip() in existing_links:
             continue
 
         title = item['title']
-        source_text = item['publisher']['title'] if item['publisher'] else ''
+        source_text = item['source']['name']
 
         parsed_url = urlparse(url)
         full_domain = parsed_url.netloc.lower().replace('www.', '')
 
-        # google index for ranking
         google_index = article_count + 1
 
         is_paywalled = full_domain.lower() in paywalled
@@ -273,7 +280,7 @@ def get_google_news_articles(search_term, session, existing_links, max_articles,
         if article_count >= max_articles:
             break
 
-    print(f"  ---found {len(articles)} new articles via GNews")
+    print(f"  ---found {len(articles)} new articles via GNews direct API")
     return articles
 
 def process_articles_batch(articles, config, analyzer, search_term, whitelist, risk_id, search_term_id, existing_links): #STID to delete later!
