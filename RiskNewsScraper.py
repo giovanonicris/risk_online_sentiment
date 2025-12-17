@@ -254,22 +254,23 @@ def get_google_news_articles(search_term, session, existing_links, max_articles,
                 decoded_url = encoded_url  # fallback
                 if 'news.google.com/rss/articles/' in encoded_url:
                     try:
-                        # extract base64 part
+                        # extract base64 part correctly
                         b64_part = encoded_url.split('/articles/')[1].split('?')[0]
-                        # proper padding
-                        b64_part += '=' * (-len(b64_part) % 4)
+                        b64_part += '=' * (-len(b64_part) % 4)  # padding
                         payload = base64.urlsafe_b64decode(b64_part)
                         
-                        # the real url is usually near the end, after a length byte
-                        # find the last http(s) sequence
+                        # convert to string, ignore errors
                         payload_str = payload.decode('utf-8', errors='ignore')
-                        matches = list(re.finditer(r'(https?://[^\0"\'<>]+)', payload_str))
-                        if matches:
-                            # take the last one - it's almost always the clean article url
-                            decoded_url = matches[-1].group(1)
+                        
+                        # find ALL http urls and take the longest one (usually the clean article url)
+                        urls = re.findall(r'(https?://[^\s"\'<>]+)', payload_str)
+                        if urls:
+                            # longest is almost always the real article
+                            decoded_url = max(urls, key=len)
                             # clean tracking
-                            decoded_url = re.sub(r'[?&]utm_source=.*$', '', decoded_url)
                             decoded_url = re.sub(r'[?&]ved=.*$', '', decoded_url)
+                            decoded_url = re.sub(r'[?&]uo.*$', '', decoded_url)
+                            decoded_url = re.sub(r'[?&]utm_.*$', '', decoded_url)
                         
                         if DEBUG_MODE:
                             print(f"      decoded -> {decoded_url}")
