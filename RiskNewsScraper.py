@@ -54,11 +54,11 @@ def main():
     # config based on risk type
     risk_type = args.risk_type
     if risk_type == "enterprise":
-        RISK_ID_COL = "ENTERPRISE_RISK_ID"
+        risk_id_col = "ENTERPRISE_RISK_ID"
         ENCODED_CSV = "EnterpriseRisksListEncoded.csv"
         OUTPUT_CSV = "enterprise_risks_online_sentiment.csv"
     else:  # emerging
-        RISK_ID_COL = "EMERGING_RISK_ID"
+        risk_id_col = "EMERGING_RISK_ID"
         ENCODED_CSV = "EmergingRisksListEncoded.csv"
         OUTPUT_CSV = "emerging_risks_online_sentiment.csv"
     
@@ -77,7 +77,7 @@ def main():
     # load data
     output_path = setup_output_dir(OUTPUT_CSV)
     existing_links = load_existing_links(output_path)
-    search_terms_df = load_search_terms(ENCODED_CSV, RISK_ID_COL)
+    search_terms_df = load_search_terms(ENCODED_CSV, risk_id_col)
     
     # only limit search terms in debug mode
     if DEBUG_MODE and MAX_SEARCH_TERMS:
@@ -88,7 +88,7 @@ def main():
     whitelist, paywalled, credibility_map, exclusive_whitelist = load_source_lists()
     
     # process articles
-    articles_df = process_risk_articles(search_terms_df, session, existing_links, analyzer, whitelist, paywalled, credibility_map, exclusive_whitelist)
+    articles_df = process_risk_articles(search_terms_df, session, existing_links, analyzer, whitelist, paywalled, credibility_map, exclusive_whitelist, risk_id_col)
     print(f"Processed DF size: {len(articles_df)}") # debug print
     
     # save results
@@ -149,9 +149,9 @@ def process_risk_articles(search_terms_df, session, existing_links, analyzer, wh
     
 # process each search term
     # helper for single term processing - for parallel
-    def process_single_term(row):
+    def process_single_term(row, risk_id_col):
         search_term = row['SEARCH_TERMS']
-        risk_id = row[RISK_ID_COL]
+        risk_id = row[risk_id_col]
         search_term_id = row['SEARCH_TERM_ID']
         
         if pd.isna(search_term):
@@ -198,14 +198,14 @@ def process_risk_articles(search_terms_df, session, existing_links, analyzer, wh
     if DEBUG_MODE and len(search_terms_df) > 1:
         # debug: process sequentially
         for _, row in search_terms_df.iterrows():
-            term_articles = process_single_term(row)
+            term_articles = process_single_term(row, risk_id_col)
             all_articles.extend(term_articles)
             if len(all_articles) >= 5:  # debug limit
                 break
     else:
         # full parallel
         with ThreadPoolExecutor(max_workers=3) as executor:
-            futures = [executor.submit(process_single_term, row) for _, row in search_terms_df.iterrows()]
+            futures = [executor.submit(process_single_term, row, risk_id_col) for _, row in search_terms_df.iterrows()]
             for future in futures:
                 all_articles.extend(future.result())
     
