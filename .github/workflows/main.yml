@@ -23,7 +23,7 @@ on:
           - "false"
 
 jobs:
-  process-enterprise:
+  process-data:
     runs-on: ubuntu-latest
     if: github.event.inputs.risk_type != 'emerging' || inputs.risk_type == 'all'
     strategy:
