@@ -236,31 +236,42 @@ def get_google_news_articles(search_term, session, existing_links, max_articles,
             req = session.session.get(rss_url, headers=session.get_random_headers())
             req.raise_for_status()
             
-            ##########################################
-            # decode rss - pure ET parse + improved lightweight decode
-            # improved base64 decode with proper padding
-            decoded_url = encoded_url  # fallback
-            if 'news.google.com/rss/articles/' in encoded_url:
-                try:
-                    b64_part = encoded_url.split('/articles/')[1].split('?')[0]
-                    b64_part += '=' * (-len(b64_part) % 4)  # proper padding
-                    decoded_bytes = base64.urlsafe_b64decode(b64_part)
-                    decoded_str = decoded_bytes.decode('utf-8', errors='ignore')
-                    
-                    url_match = re.search(r'(https?://[^\s"]+)', decoded_str)
-                    if url_match:
-                        decoded_url = url_match.group(1)
-                        decoded_url = re.sub(r'&ved=.*$', '', decoded_url)
-                        decoded_url = re.sub(r'\?uo.*$', '', decoded_url)
-                    
-                    if DEBUG_MODE:
-                        print(f"      decoded -> {decoded_url}")
-                except Exception as e:
-                    if DEBUG_MODE:
-                        print(f"      decode failed: {e}")
-                    decoded_url = encoded_url
-
-                ############################################
+            # decode rss - pure ET parse
+            root = ET.fromstring(req.content)
+            items = root.findall('.//item')
+            
+            if not items:
+                print(f"  - No more items on page {page+1}")
+                break
+            
+            for item_idx, item in enumerate(items):
+                link_elem = item.find('link')
+                if link_elem is None or not link_elem.text:
+                    continue
+                encoded_url = link_elem.text.strip()
+                
+                # improved base64 decode with proper padding - now inside the loop
+                decoded_url = encoded_url  # fallback
+                if 'news.google.com/rss/articles/' in encoded_url:
+                    try:
+                        b64_part = encoded_url.split('/articles/')[1].split('?')[0]
+                        b64_part += '=' * (-len(b64_part) % 4)  # proper padding
+                        decoded_bytes = base64.urlsafe_b64decode(b64_part)
+                        decoded_str = decoded_bytes.decode('utf-8', errors='ignore')
+                        
+                        url_match = re.search(r'(https?://[^\s"]+)', decoded_str)
+                        if url_match:
+                            decoded_url = url_match.group(1)
+                            decoded_url = re.sub(r'&ved=.*$', '', decoded_url)
+                            decoded_url = re.sub(r'\?uo.*$', '', decoded_url)
+                        
+                        if DEBUG_MODE:
+                            print(f"      decoded -> {decoded_url}")
+                    except Exception as e:
+                        if DEBUG_MODE:
+                            print(f"      decode failed: {e}")
+                        decoded_url = encoded_url
+                
                 title_elem = item.find('title')
                 title_text = title_elem.text.strip() if title_elem is not None else ''
                 
