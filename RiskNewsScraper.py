@@ -237,36 +237,41 @@ def get_google_news_articles(search_term, session, existing_links, max_articles,
             req.raise_for_status()
             
             # decode rss - pure ET parse + improved lightweight decode
-            root = ET.fromstring(req.content)
-            items = root.findall('.//item')
-            
-            if not items:
-                print(f"  - No more items on page {page+1}")
-                break
-            
-            for item_idx, item in enumerate(items):
-                link_elem = item.find('link')
-                if link_elem is None or not link_elem.text:
-                    continue
-                encoded_url = link_elem.text.strip()
+            decoded_url = encoded_url
+            try:
+                # browser-like headers
+                headers = session.get_random_headers()
+                headers.update({
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.5',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'Referer': 'https://news.google.com/',
+                    'DNT': '1',
+                    'Connection': 'keep-alive',
+                    'Upgrade-Insecure-Requests': '1',
+                    'Sec-Fetch-Dest': 'document',
+                    'Sec-Fetch-Mode': 'navigate',
+                    'Sec-Fetch-Site': 'none',
+                    'Sec-Fetch-User': '?1',
+                })
                 
-                # more robust decode - works on current (as of 2025) Google News RSS formt
-                decoded_url = encoded_url  # fallback if redirect fails
-                try:
-                    head_resp = session.session.head(encoded_url, allow_redirects=True, headers=session.get_random_headers(), timeout=10)
-                    decoded_url = head_resp.url
-                    if DEBUG_MODE:
-                        print(f"      redirected -> {decoded_url}")
-                except Exception as e:
-                    if DEBUG_MODE:
-                        print(f"      redirect failed (using encoded): {e}")
-                    # fallback to full get if head fails (rare)
-                    try:
-                        get_resp = session.session.get(encoded_url, allow_redirects=True, headers=session.get_random_headers(), timeout=10)
-                        decoded_url = get_resp.url
-                    except:
-                        pass
+                # use GET (HEAD often blocked by Google)
+                resp = session.session.get(
+                    encoded_url,
+                    headers=headers,
+                    allow_redirects=True,
+                    timeout=15
+                )
+                decoded_url = resp.url
                 
+                if DEBUG_MODE:
+                    print(f"      redirected -> {decoded_url}")
+            except Exception as e:
+                if DEBUG_MODE:
+                    print(f"      redirect failed: {e}")
+                decoded_url = encoded_url
+
+                ############################################
                 title_elem = item.find('title')
                 title_text = title_elem.text.strip() if title_elem is not None else ''
                 
