@@ -221,7 +221,7 @@ def process_risk_articles(search_terms_df, session, existing_links, analyzer, wh
         return pd.DataFrame()
 
 def get_google_news_articles(search_term, session, existing_links, max_articles, now, yesterday, whitelist, paywalled, credibility_map, exclusive_whitelist):
-    # gnews setup with your api key
+    # GNews with API key in secrets
     google_news = GNews(
         language='en',
         country='US',
