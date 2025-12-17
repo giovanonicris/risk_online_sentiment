@@ -22,6 +22,7 @@ import xml.etree.ElementTree as ET
 import argparse
 import os
 import base64
+from gnews import GNews
 
 # GLOBAL CONSTANTS
 SEARCH_DAYS = 7  # look back this many days for news articles; edit to change
@@ -220,101 +221,56 @@ def process_risk_articles(search_terms_df, session, existing_links, analyzer, wh
         return pd.DataFrame()
 
 def get_google_news_articles(search_term, session, existing_links, max_articles, now, yesterday, whitelist, paywalled, credibility_map, exclusive_whitelist):
-    articles = []
-    page = 0
-    article_count = 0
-    
-    while article_count < max_articles:
-        try:
-            # build exclusive site query for whitelist
-            site_query = " OR ".join(f"site:{domain}" for domain in exclusive_whitelist)
-            full_search_term = f"{search_term} ({site_query})"
-            
-            # now build rss url with full_search_term
-            rss_url = f'https://news.google.com/rss/search?q={full_search_term}%20when%3A{SEARCH_DAYS}d&hl=en-US&gl=US&ceid=US:en&start={page * 10}'
-            
-            req = session.session.get(rss_url, headers=session.get_random_headers())
-            req.raise_for_status()
-            
-            # decode rss - pure ET parse
-            root = ET.fromstring(req.content)
-            items = root.findall('.//item')
-            
-            if not items:
-                print(f"  - No more items on page {page+1}")
-                break
-            
-            for item_idx, item in enumerate(items):
-                link_elem = item.find('link')
-                if link_elem is None or not link_elem.text:
-                    continue
-                encoded_url = link_elem.text.strip()
-                
-                # final working decode for late 2025 google news rss
-                # try to follow google redirect to get the real article url
-                decoded_url = encoded_url  # fallback
-                if 'news.google.com' in encoded_url:
-                    try:
-                        # use GET (HEAD is often blocked)
-                        redirect_resp = session.session.get(
-                            encoded_url,
-                            headers=session.get_random_headers(),
-                            allow_redirects=True,
-                            timeout=10
-                        )
-                        decoded_url = redirect_resp.url
-                        if DEBUG_MODE:
-                            print(f"      redirected -> {decoded_url}")
-                    except Exception as e:
-                        if DEBUG_MODE:
-                            print(f"      redirect failed: {e}")
-                        decoded_url = encoded_url
-                
-                title_elem = item.find('title')
-                title_text = title_elem.text.strip() if title_elem is not None else ''
-                
-                source_elem = item.find('source')
-                source_text = source_elem.text.strip() if source_elem is not None else ''
-                
-                # skip existing
-                if decoded_url.lower().strip() in existing_links:
-                    continue
-                
-                # extract full domain
-                parsed_url = urlparse(decoded_url)
-                full_domain = parsed_url.netloc.lower().replace('www.', '')
-                
-                # add google index for article position (page-based + item position)
-                google_index = page * 10 + item_idx + 1
-                
-                # check if domain is paywalled
-                is_paywalled = full_domain.lower() in paywalled
-                
-                # set credibility type (default to Relevant Article)
-                credibility_type = credibility_map.get(full_domain.lower(), 'Relevant Article')
-                
-                articles.append({
-                    'url': decoded_url,
-                    'title': title_text,
-                    'html': None,  # will fetch during processing
-                    'google_index': google_index,
-                    'paywalled': is_paywalled,
-                    'credibility_type': credibility_type
-                })
-                print(f"    - Added article: '{title_text[:50]}...' from {source_text} (domain: {get_source_name(decoded_url)}, full_domain: {full_domain}, index: {google_index}, paywalled: {is_paywalled}, credibility: {credibility_type})")
+    # gnews setup with your api key
+    google_news = GNews(
+        language='en',
+        country='US',
+        period='7d',
+        max_results=max_articles,
+        api_key='b21cccbbec650d03601531817fbdf6f3'  # your key
+    )
 
-                article_count += 1    
-                if article_count >= max_articles:
-                    break
-                    
-            page += 1
-            time.sleep(1)  # polite delay
-            
-        except requests.exceptions.RequestException as e:
-            print(f"SPOTTED REQUEST ERROR - term {search_term[:30]}... on page {page+1}: {e}")
+    # build the same exclusive whitelist query you had before
+    site_query = " OR ".join(f"site:{domain}" for domain in exclusive_whitelist)
+    full_query = f"{search_term} ({site_query})"
+
+    news_items = google_news.get_news(full_query)
+
+    articles = []
+    article_count = 0
+
+    for item in news_items:
+        url = item['url']
+        if url.lower().strip() in existing_links:
+            continue
+
+        title = item['title']
+        source_text = item['publisher']['title'] if item['publisher'] else ''
+
+        parsed_url = urlparse(url)
+        full_domain = parsed_url.netloc.lower().replace('www.', '')
+
+        # google index for ranking
+        google_index = article_count + 1
+
+        is_paywalled = full_domain.lower() in paywalled
+        credibility_type = credibility_map.get(full_domain.lower(), 'Relevant Article')
+
+        articles.append({
+            'url': url,
+            'title': title,
+            'html': None,
+            'google_index': google_index,
+            'paywalled': is_paywalled,
+            'credibility_type': credibility_type
+        })
+        print(f"    - Added article: '{title[:50]}...' from {source_text} (domain: {get_source_name(url)}, full_domain: {full_domain}, index: {google_index}, paywalled: {is_paywalled}, credibility: {credibility_type})")
+
+        article_count += 1
+        if article_count >= max_articles:
             break
-    
-    print(f"  ---found {len(articles)} new articles")
+
+    print(f"  ---found {len(articles)} new articles via GNews")
     return articles
 
 def process_articles_batch(articles, config, analyzer, search_term, whitelist, risk_id, search_term_id, existing_links): #STID to delete later!
