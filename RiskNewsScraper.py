@@ -229,7 +229,7 @@ def get_google_news_articles(search_term, session, existing_links, max_articles,
         return []
 
     # chunk the whitelist to avoid URL too long
-    chunk_size = 10
+    chunk_size = 5
     whitelist_chunks = [list(exclusive_whitelist)[i:i + chunk_size] for i in range(0, len(exclusive_whitelist), chunk_size)]
     print(f"using {len(whitelist_chunks)} whitelist chunks of size {chunk_size}")
 
@@ -251,7 +251,7 @@ def get_google_news_articles(search_term, session, existing_links, max_articles,
 
         try:
             resp = requests.get(url, params=params, timeout=15)
-            time.sleep(1)  # avoid burst rate limit in API
+            time.sleep(1)  # avoid rate issues
             if resp.status_code != 200:
                 print(f"GNews chunk {chunk_idx+1} failed: {resp.status_code} {resp.text}")
                 continue
