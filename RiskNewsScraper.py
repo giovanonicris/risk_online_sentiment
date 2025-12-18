@@ -228,72 +228,53 @@ def get_google_news_articles(search_term, session, existing_links, max_articles,
         print("ERROR: GNEWS_API_KEY not set or empty!")
         return []
 
-    # chunk the whitelist to avoid URL too long
-    chunk_size = 5
-    whitelist_chunks = [list(exclusive_whitelist)[i:i + chunk_size] for i in range(0, len(exclusive_whitelist), chunk_size)]
-    print(f"using {len(whitelist_chunks)} whitelist chunks of size {chunk_size}")
+    url = "https://gnews.io/api/v4/search"
+    params = {
+        'q': search_term,
+        'lang': 'en',
+        'country': 'us',
+        'max': max_articles,
+        'apikey': api_key
+    }
 
-    all_articles = []
-    seen_urls = set()  # dedup across chunks
+    try:
+        resp = requests.get(url, params=params, timeout=15)
+        resp.raise_for_status()
+        data = resp.json()
+        print(f"GNews API response: {resp.status_code}, total articles: {data.get('totalArticles', 0)}")
+    except Exception as e:
+        print(f"GNews API request failed: {e}")
+        return []
 
-    for chunk_idx, chunk in enumerate(whitelist_chunks):
-        site_query = " OR ".join(f"site:{domain}" for domain in chunk)
-        query = f"{search_term} ({site_query})" if site_query else search_term
-
-        url = "https://gnews.io/api/v4/search"
-        params = {
-            'q': query,
-            'lang': 'en',
-            'country': 'us',
-            'max': max_articles,
-            'apikey': api_key
-        }
-
-        try:
-            resp = requests.get(url, params=params, timeout=15)
-            time.sleep(1)  # avoid rate issues
-            if resp.status_code != 200:
-                print(f"GNews chunk {chunk_idx+1} failed: {resp.status_code} {resp.text}")
-                continue
-            data = resp.json()
-        except Exception as e:
-            print(f"GNews chunk {chunk_idx+1} request failed: {e}")
+    articles = []
+    for idx, item in enumerate(data.get('articles', [])):
+        url = item['url']
+        if url.lower().strip() in existing_links:
             continue
 
-        for item in data.get('articles', []):
-            url = item['url']
-            if url.lower().strip() in existing_links or url in seen_urls:
-                continue
+        title = item['title']
+        source_text = item['source']['name']
 
-            seen_urls.add(url)
+        parsed_url = urlparse(url)
+        full_domain = parsed_url.netloc.lower().replace('www.', '')
 
-            title = item['title']
-            source_text = item['source']['name']
+        google_index = idx + 1
 
-            parsed_url = urlparse(url)
-            full_domain = parsed_url.netloc.lower().replace('www.', '')
+        is_paywalled = full_domain.lower() in paywalled
+        credibility_type = credibility_map.get(full_domain.lower(), 'Relevant Article')
 
-            google_index = len(all_articles) + 1
+        articles.append({
+            'url': url,
+            'title': title,
+            'html': None,
+            'google_index': google_index,
+            'paywalled': is_paywalled,
+            'credibility_type': credibility_type
+        })
+        print(f"    - Added article: '{title[:50]}...' from {source_text} (domain: {get_source_name(url)}, full_domain: {full_domain})")
 
-            is_paywalled = full_domain.lower() in paywalled
-            credibility_type = credibility_map.get(full_domain.lower(), 'Relevant Article')
-
-            all_articles.append({
-                'url': url,
-                'title': title,
-                'html': None,
-                'google_index': google_index,
-                'paywalled': is_paywalled,
-                'credibility_type': credibility_type
-            })
-            print(f"    - Added article: '{title[:50]}...' from {source_text} (domain: {get_source_name(url)}, full_domain: {full_domain})")
-
-            if len(all_articles) >= max_articles:
-                print(f"  ---found {len(all_articles)} new articles via GNews (chunked)")
-                return all_articles
-
-    print(f"  ---found {len(all_articles)} new articles via GNews (chunked)")
-    return all_articles
+    print(f"  ---found {len(articles)} new articles via GNews direct API")
+    return articles
 
 def process_articles_batch(articles, config, analyzer, search_term, whitelist, risk_id, search_term_id, existing_links): #STID to delete later!
     # Process in parallel for optimization...
