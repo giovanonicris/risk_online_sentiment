@@ -221,6 +221,7 @@ def process_risk_articles(search_terms_df, session, existing_links, analyzer, wh
         return pd.DataFrame()
     
 import requests
+###############################################################
 
 def get_google_news_articles(search_term, session, existing_links, max_articles, now, yesterday, whitelist, paywalled, credibility_map, exclusive_whitelist):
     api_key = os.getenv('GNEWS_API_KEY')
@@ -228,9 +229,15 @@ def get_google_news_articles(search_term, session, existing_links, max_articles,
         print("ERROR: GNEWS_API_KEY not set or empty!")
         return []
 
+    # build whitelist query
+###WHITELIST BLOCK
+#    site_query = " OR ".join(f"site:{domain}" for domain in exclusive_whitelist)
+#    query = f"{search_term} ({site_query})"
+    query = search_term
+
     url = "https://gnews.io/api/v4/search"
     params = {
-        'q': search_term,
+        'q': query,
         'lang': 'en',
         'country': 'us',
         'max': max_articles,
@@ -276,6 +283,8 @@ def get_google_news_articles(search_term, session, existing_links, max_articles,
     print(f"  ---found {len(articles)} new articles via GNews direct API")
     return articles
 
+
+############################################################################
 def process_articles_batch(articles, config, analyzer, search_term, whitelist, risk_id, search_term_id, existing_links): #STID to delete later!
     # Process in parallel for optimization...
     processed = []
