@@ -257,7 +257,7 @@ def get_google_news_articles(search_term, session, existing_links, max_articles,
     for idx, item in enumerate(data.get('articles', [])):
         url = item['url']
         if url.lower().strip() in existing_links:
-            print(f"    - Skipping duplicate article: '{title[:50]}...'")
+            print(f"-------- skipping duplicate article: '{title[:50]}...'")
             continue
 
         title = item['title']
@@ -279,9 +279,9 @@ def get_google_news_articles(search_term, session, existing_links, max_articles,
             'paywalled': is_paywalled,
             'credibility_type': credibility_type
         })
-        print(f"    - Added article: '{title[:50]}...' from {source_text} (domain: {get_source_name(url)}, full_domain: {full_domain})")
+        print(f"-------- added article: '{title[:50]}...' from {source_text} (domain: {get_source_name(url)}, full_domain: {full_domain})")
 
-    print(f"  ---found {len(articles)} new articles via GNews direct API")
+    print(f"-------found {len(articles)} new articles via GNews direct API")
     return articles
 
 
